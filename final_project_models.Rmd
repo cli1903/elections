@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+library(randomForest)
+library(tree)
+library(e1071)
+library(class)
+
+train_data = read.table('/Users/cindyli/Documents/php2650/final/data/2014_data_r.csv', sep = ',', header = TRUE)
+test_data = read.table('/Users/cindyli/Documents/php2650/final/data/2016_data_r.csv', sep = ',', header = TRUE)
+
+num_counties = dim(train_data)[1]
+
+set.seed(1)
+shuffle_indices = sample(c(1:num_counties))
+
+train = train_data[shuffle_indices, ]
+
+tr = tree(as.factor(winner)~., data = train)
+set.seed(1)
+tr.cv = cv.tree(tr)
+plot(tr.cv$size, tr.cv$deviance)
+plot(tr.cv$k, tr.cv$deviance)
+tr.pred = predict(tr, newdata = test_data, type = 'class')
+tr.accuracy = mean(1 * (tr.pred == test_data$winner))
+tr.train.pred = predict(tr, newdata = train, type = 'class')
+tr.train.acc = mean(ifelse(tr.train.pred == train$winner, 1, 0))
+
+
+set.seed(1)
+rf = randomForest(as.factor(winner)~., data = train, importance = TRUE)
+rf.pred = predict(rf, newdata = test_data, type = 'class')
+rf.accuracy = mean(1 * (rf.pred == test_data$winner))
+rf.train.pred = predict(rf, newdata = train, type = 'class')
+rf.train.acc = mean(ifelse(rf.train.pred == train$winner, 1, 0))
+
+
+tune.out = tune(svm, as.factor(winner)~., data = train, kernel = 'radial', ranges = list(gamma = c(0.001, 0.01, 0.1, 1, 5, 10, 100), cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+
+svmr = svm(as.factor(winner)~., data = train, kernel="radial", gamma = 0.001, cost = 0.001)
+svmr.pred = predict(svmr, newdata = test_data, type = 'class')
+svmr.accuracy = mean(1 * (svmr.pred == test_data$winner))
+svmr.train.pred = predict(svmr, newdata = train, type = 'class')
+svmr.train.acc = mean(ifelse(svmr.train.pred == train$winner, 1, 0))
+
+set.seed(1)
+svmr.tune = tune(svm, as.factor(winner)~.-, data = train, kernel = "radial", ranges = list(cost = c(0.1,1,10,100,1000), gamma = c(0.5,1,2,3,4)))
+
+
+lr = glm(as.factor(winner)~., data = train, family = binomial)
+lr.prob = predict(lr, newdata = test_data, type = 'response')
+lr.pred = 1 * (lr.prob > 0.5)
+lr.acc = mean(1 * (lr.pred == test_data$winner))
+
+lr.train.prob = predict(lr, newdata = train, type = 'response')
+lr.train.pred = 1 * (lr.train.prob > 0.5)
+lr.train.acc = mean(1 * (lr.train.pred == train$winner))
+
+kn = knn(train[, -53], test_data[, -53], cl = train$winner, k = 7)
+kn.acc = mean(1 * (kn == test_data$winner))
+
+kn_train = knn(train[, -53], train[, -53], cl = train$winner, k = 7)
+kn.train.acc = mean(1 * (kn_train == train$winner))
+
+k = c(1:15)
+knn_acc = list()
+for (val in k) {
+  set.seed(1)
+  knn_pred = knn(train[, -53], train[, -53], train$winner, k = val)
+  acc = mean(1 * (knn_pred == train$winner))
+  knn_acc = append(knn_acc, 1 - acc)
+} 
+
+plot(k, knn_acc)
+
+
+
+
+
+
+
+
+
